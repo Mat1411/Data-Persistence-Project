@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
+using System.IO;
 
 public class MainManager : MonoBehaviour
 {
@@ -12,30 +13,57 @@ public class MainManager : MonoBehaviour
 
     public Text ScoreText;
     public GameObject GameOverText;
-    
+
+    public Text HighScoreText;
+    public int highScore;
+    public int currentHighScore;
+
+    private string userName = MenuUIHandler.Instance.userName;
+    public string loadedUserName;
+
+
     private bool m_Started = false;
     private int m_Points;
     
     private bool m_GameOver = false;
 
-    
+    public static MainManager Instance;
+
+
+
+    private void Awake()
+    {
+        LoadScore();
+        LoadName();
+        HighScoreDisplay();
+
+
+
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-        const float step = 0.6f;
-        int perLine = Mathf.FloorToInt(4.0f / step);
-        
-        int[] pointCountArray = new [] {1,1,2,2,5,5};
-        for (int i = 0; i < LineCount; ++i)
+
+        if (SceneManager.GetActiveScene().buildIndex == 1)
         {
-            for (int x = 0; x < perLine; ++x)
+            const float step = 0.6f;
+            int perLine = Mathf.FloorToInt(4.0f / step);
+
+            int[] pointCountArray = new[] { 1, 1, 2, 2, 5, 5 };
+            for (int i = 0; i < LineCount; ++i)
             {
-                Vector3 position = new Vector3(-1.5f + step * x, 2.5f + i * 0.3f, 0);
-                var brick = Instantiate(BrickPrefab, position, Quaternion.identity);
-                brick.PointValue = pointCountArray[i];
-                brick.onDestroyed.AddListener(AddPoint);
+                for (int x = 0; x < perLine; ++x)
+                {
+                    Vector3 position = new Vector3(-1.5f + step * x, 2.5f + i * 0.3f, 0);
+                    var brick = Instantiate(BrickPrefab, position, Quaternion.identity);
+                    brick.PointValue = pointCountArray[i];
+                    brick.onDestroyed.AddListener(AddPoint);
+                }
             }
         }
+        
+
     }
 
     private void Update()
@@ -60,6 +88,7 @@ public class MainManager : MonoBehaviour
                 SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
             }
         }
+        currentHighScore = m_Points;
     }
 
     void AddPoint(int point)
@@ -68,9 +97,68 @@ public class MainManager : MonoBehaviour
         ScoreText.text = $"Score : {m_Points}";
     }
 
+    void HighScoreDisplay()
+    {  
+
+        HighScoreText.text = "High score by " + loadedUserName  + " is " + highScore;
+    }
+
     public void GameOver()
     {
         m_GameOver = true;
         GameOverText.SetActive(true);
+        
+       if (currentHighScore > highScore)
+        {
+            highScore = currentHighScore;
+            SaveScore();
+            SaveName();
+        }
+
+
+
+    }
+    [System.Serializable]
+    class SaveData
+    {
+        public int score;
+        public string name;
+    }
+    public void SaveScore()
+    {
+        SaveData data = new SaveData();
+        data.score = highScore;
+        string json = JsonUtility.ToJson(data);
+        File.WriteAllText(Application.persistentDataPath + "/savescore.json", json);
+    }
+
+    public void LoadScore()
+    {
+        string path = Application.persistentDataPath + "/savescore.json";
+        if(File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            highScore = data.score;
+        }
+    }
+
+    public void SaveName()
+    {
+        SaveData data = new SaveData();
+        data.name = userName;
+        string json = JsonUtility.ToJson(data);
+        File.WriteAllText(Application.persistentDataPath + "/savename.json", json);
+    }
+
+    public void LoadName()
+    {
+        string path = Application.persistentDataPath + "/savename.json";
+        if (File.Exists(path))
+        {
+            string json = File.ReadAllText(path);
+            SaveData data = JsonUtility.FromJson<SaveData>(json);
+            loadedUserName = data.name;
+        }
     }
 }
